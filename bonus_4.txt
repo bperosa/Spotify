@@ -2,9 +2,23 @@ Question: Meet with you team to discuss the details of how you are going to appr
 every single step in your code. The more details you provide the higher the chance of getting credit for this bonus assignment. 
 
 #Answer:
+Team Members: 
+- Jessica Hamilton
+- Bailey Perosa
+- Andrew Paulonis
+- James McHale
 
-Import tensorflow as tf
+Approach/ Process:
+- We have created a github repo for collaboration
+- We will develop the code for model building and tuning with a subset of records
+- Execute code at scale
+- Examine results
+- The bulk of the powerpoint will be completed after we have model results
 
+Pseudo Code: 
+
+#Given code
+import tensorflow as tf
 
 import numpy as np
 import gzip
@@ -14,7 +28,6 @@ def parse(path):
     g = gzip.open(path, 'rb')
     for l in g:
     yield eval(l)
-
 
 i = 0
 df = {}
@@ -26,16 +39,36 @@ for d in parse('meta_Clothing_Shoes_and_Jewelry.json.gz'):
     Y = np.array(d['category'])
     print('\nY (category):\n')
     print(Y)
-    if i == 10:
+    if i == 10: #change/remove
         break
 
+establish training/ testing records
+
+#Build model structure
 tf inputs
 tf layer 1
 tf layer 2
 tf outputs
 
+#Train/tune model
+create model table
+# model_id | train_size | test_size | train_time | train_metric | test_metric 
+store parameter grid into model table 
 loop over other parameters
+    start timer
     hyper parameter tuning
+    end timer
+    generate train/test metrics
+    store results into model table
+    store training times into model table
 compare
 
+export model table to csv
+
 plot results
+
+select best model parameters
+create variable importance plots
+create partial plots
+
+#export (or copy/paste) plots/charts/metrics for presentation
