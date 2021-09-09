@@ -34,3 +34,10 @@ for d in parse('meta_Clothing_Shoes_and_Jewelry.json.gz'):
         
         
 # model
+
+#PROJECT HELP
+# have nested loop: outside = epochs and inside = instances; set batch size and epoch to 1; when it hits model.fit it will update the parameters
+#for i in range(10): # epochs
+    #for i in range(len(x)): (X will not be loaded -> this will need to be hard coded) # instances
+        # load new instance
+        #model.fit(new instance, epochs=?, batch_size=1) #train model
