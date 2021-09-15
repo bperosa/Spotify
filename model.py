@@ -104,6 +104,23 @@ def y_to_sparse(y_dict, y):
 
     return tf.sparse.reorder(tf.SparseTensor(sparse_index, sparse_value, sparse_dense_shape))
 
+def y_to_numpy(y_dict, y):
+    y_keys = list(y_dict.keys())
+    index = []
+    value = []
+    array = np.zeros(len(y_dict.keys()))
+    for word in set(y):
+        try: 
+            index.append([0,y_keys.index(word)])
+            value.append(y_dict[word])
+        except:
+            pass
+    if not index:
+        array[index] = np.array(value)
+
+    return array
+
+
 def pprint_sparse_tensor(st):
     s = "<SparseTensor shape=%s \n values={" % (st.dense_shape.numpy().tolist(),)
     for (index, value) in zip(st.indices, st.values):
@@ -111,6 +128,7 @@ def pprint_sparse_tensor(st):
     return s + "}>"
 
 if __name__ == '__main__':
+    print(tf.config.list_physical_devices())
     #Saving All
     test_index = np.sort(gen_test_set())
     #test_index
@@ -118,8 +136,8 @@ if __name__ == '__main__':
         #gen_unique_values(test_index) #Can import for this from ./counters/idf_training.csv (X) and ./counters/y_training.csv (y)
 
     #Import Data
-    min_ys = 25
-    min_x = 50
+    min_ys = 100
+    min_x = 25
     with open('counters/idf_training.csv') as f:
         idf_tmp = {k: int(v) for k,v in [line.strip().split(', ') for line in f]}
 
@@ -149,12 +167,14 @@ if __name__ == '__main__':
     idf_levels = len(idf_counter.keys())
 
     #Model Architecture
-    inputs = tf.keras.layers.Input(shape= (idf_levels,), name='input') 
+    #inputs = tf.keras.layers.Input(shape= (idf_levels,), name='input') 
+    inputs = tf.keras.layers.Input(shape= (idf_levels,), name='input', sparse = True) 
     hidden1 = tf.keras.layers.Dense(units= int(idf_levels*(.25**1)) , activation="sigmoid", name = 'hidden1')(inputs)
-    hidden2 = tf.keras.layers.Dense(units= int(idf_levels*(.25**2)), activation="sigmoid", name= 'hidden2')(hidden1)
-    hidden3 = tf.keras.layers.Dense(units= int(idf_levels*(.25**3)), activation="sigmoid", name= 'hidden3')(hidden2)
-    hidden4 = tf.keras.layers.Dense(units= int(idf_levels*(.25**4)), activation="sigmoid", name= 'hidden4')(hidden3)
-    outputs = tf.keras.layers.Dense(units= y_levels, activation = "sigmoid", name= 'output')(hidden4) 
+    hidden2 = tf.keras.layers.Dense(units= int(idf_levels*(.25**1)) , activation="sigmoid", name = 'hidden2')(hidden1)
+    hidden3 = tf.keras.layers.Dense(units= int(idf_levels*(.25**2)), activation="sigmoid", name= 'hidden3')(hidden2)
+    hidden4 = tf.keras.layers.Dense(units= int(idf_levels*(.25**3)), activation="sigmoid", name= 'hidden4')(hidden3)
+    hidden5 = tf.keras.layers.Dense(units= int(idf_levels*(.25**4)), activation="sigmoid", name= 'hidden5')(hidden4)
+    outputs = tf.keras.layers.Dense(units= y_levels, activation = "sigmoid", name= 'output')(hidden5) 
 
     model = tf.keras.Model(inputs = inputs, outputs = outputs)
 
@@ -168,6 +188,7 @@ if __name__ == '__main__':
     y_test = 0
     X_test = 0
     for ep in range(epochs):
+        print(f'epoch: {ep}')
         time_start = perf_counter()
     #Training Loop (record)
         i = 0
@@ -189,33 +210,33 @@ if __name__ == '__main__':
             for word in Y:
                 try: y_dict[word] += 1
                 except: pass
-            Ysparse = y_to_sparse(y_dict, Y)
+            Ysparse = y_to_numpy(y_dict, Y)
 
             if i in test_index and (ep ==0):
                 j += 1
                 if j == 1:
-                    y_test = y_to_sparse(y_dict, Y)
+                    #y_test = y_to_sparse(y_dict, Y)
+                    y_test = y_to_numpy(y_dict, Y)
                     X_test = title_to_sparse(X_dict, idf_counter, title)
                 else:
                     y_patterns = [y_test, Ysparse]
-                    y_test = tf.sparse.concat(axis=0, sp_inputs = y_patterns)
+                    y_test = np.concatenate(axis=0, sp_inputs = y_patterns)
 
                     X_patterns = [X_test, Xsparse]
-                    X_test = tf.sparse.concat(axis=0, sp_inputs = X_patterns)
+                    X_test = np.concatenate(axis=0, sp_inputs = X_patterns)
             else:
-                try:
-                    history = model.fit(x=tf.sparse.to_dense(Xsparse), y= tf.sparse.to_dense(Ysparse), batch_size = 1, epochs = 1)
-                except:
-                    print(i)
-                    print(pprint_sparse_tensor(Xsparse))
-                    print(pprint_sparse_tensor(Ysparse))
+                #history = model.fit(x=tf.sparse.to_dense(Xsparse), y= tf.sparse.to_dense(Ysparse), batch_size = 1, epochs = 1, verbose = 0)
+                history = model.fit(x=Xsparse, y= Ysparse, batch_size = 1, epochs = 1, verbose = 0)
+                pass
+
             # if i % 100 == 0:
             #     print(f'index {i}')
             #     print(f'X Tensor: {pprint_sparse_tensor(Xsparse)}')
             #     print(f'Y Tensor: {pprint_sparse_tensor(Ysparse)}')
 
-            if i % 10000 == 0: #change/remove
+            if i % 1000 == 0: #change/remove
                 print(i)
+                break
 
         epoch_timers.append(perf_counter() - time_start)
         test_loss = model.evaluate(x= tf.sparse.to_dense(X_test), y= tf.sparse.to_dense(y_test))
@@ -229,6 +250,6 @@ if __name__ == '__main__':
 
     #mod2 = tf.keras.models.load_model('./models/initial_model')
 
-    df = pd.DataFrame(dict(test_loss = test_loss, test_loss_epochs = test_loss_epochs, train_loss_epochs = train_loss_epochs, epoch_timers=epoch_timers ))
+        df = pd.DataFrame(dict(test_loss = test_loss, test_loss_epochs = test_loss_epochs, train_loss_epochs = train_loss_epochs, epoch_timers=epoch_timers ))
 
-    df.to_csv('training_stats.csv', index = False)
+        df.to_csv('training_stats.csv', index = False)
