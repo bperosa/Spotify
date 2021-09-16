@@ -108,10 +108,10 @@ def y_to_numpy(y_dict, y):
     y_keys = list(y_dict.keys())
     index = []
     value = []
-    array = np.zeros(len(y_dict.keys()))
+    array = np.zeros((1,len(y_dict.keys())))
     for word in set(y):
         try: 
-            index.append([0,y_keys.index(word)])
+            index.append(y_keys.index(word))
             value.append(y_dict[word])
         except:
             pass
@@ -219,11 +219,11 @@ if __name__ == '__main__':
                     y_test = y_to_numpy(y_dict, Y)
                     X_test = title_to_sparse(X_dict, idf_counter, title)
                 else:
-                    y_patterns = [y_test, Ysparse]
-                    y_test = np.concatenate(axis=0, sp_inputs = y_patterns)
+                    #y_patterns = [y_test, Ysparse]
+                    y_test = np.concatenate(y_test, axis = 0)
 
                     X_patterns = [X_test, Xsparse]
-                    X_test = np.concatenate(axis=0, sp_inputs = X_patterns)
+                    X_test = tf.sparse.concat(axis=0, sp_inputs = X_patterns)
             else:
                 #history = model.fit(x=tf.sparse.to_dense(Xsparse), y= tf.sparse.to_dense(Ysparse), batch_size = 1, epochs = 1, verbose = 0)
                 history = model.fit(x=Xsparse, y= Ysparse, batch_size = 1, epochs = 1, verbose = 0)
@@ -239,7 +239,7 @@ if __name__ == '__main__':
                 break
 
         epoch_timers.append(perf_counter() - time_start)
-        test_loss = model.evaluate(x= tf.sparse.to_dense(X_test), y= tf.sparse.to_dense(y_test))
+        test_loss = model.evaluate(x= X_test, y= y_test)
         test_loss_epochs.append(test_loss)
         train_loss_epochs.append(history.history['loss'])
         print(f'END of dpoch: {ep}')
