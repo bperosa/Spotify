@@ -136,8 +136,8 @@ if __name__ == '__main__':
         #gen_unique_values(test_index) #Can import for this from ./counters/idf_training.csv (X) and ./counters/y_training.csv (y)
 
     #Import Data
-    min_ys = 100
-    min_x = 25
+    min_ys = 1000
+    min_x = 10
     with open('counters/idf_training.csv') as f:
         idf_tmp = {k: int(v) for k,v in [line.strip().split(', ') for line in f]}
 
@@ -207,8 +207,8 @@ if __name__ == '__main__':
             Xsparse = title_to_sparse(X_dict, idf_counter, title)
 
             Y = np.array(d['category'])
-            for word in Y:
-                try: y_dict[word] += 1
+            for cat in set(Y):
+                try: y_dict[cat] += 1
                 except: pass
             Ysparse = y_to_numpy(y_dict, Y)
 
