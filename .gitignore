@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#vscode
+.vscode
+
+#data
+meta_Clothing_Shoes_and_Jewelry.json.gz
