@@ -220,8 +220,13 @@ if __name__ == '__main__':
                     X_test = title_to_sparse(X_dict, idf_counter, title)
                 else:
                     #y_patterns = [y_test, Ysparse]
-                    y_test = np.concatenate(y_test, axis = 0)
+                    #print('np.concatenate call')
+                    #print('np.stack call')
+                    #print(y_test)
+                    #y_test = np.concatenate(y_test, axis = 0)
+                    y_test = np.stack(y_test, axis = 0)
 
+                    #print('sparse concat call')
                     X_patterns = [X_test, Xsparse]
                     X_test = tf.sparse.concat(axis=0, sp_inputs = X_patterns)
             else:
