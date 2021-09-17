@@ -231,6 +231,7 @@ if __name__ == '__main__':
                     X_test = tf.sparse.concat(axis=0, sp_inputs = X_patterns)
             else:
                 #history = model.fit(x=tf.sparse.to_dense(Xsparse), y= tf.sparse.to_dense(Ysparse), batch_size = 1, epochs = 1, verbose = 0)
+                #print(i, Xsparse.shape, Ysparse.shape)
                 history = model.fit(x=Xsparse, y= Ysparse, batch_size = 1, epochs = 1, verbose = 0)
                 pass
 
@@ -241,7 +242,8 @@ if __name__ == '__main__':
 
             if i % 1000 == 0: #change/remove
                 print(i)
-                break
+                print(perf_counter() - time_start, ' seconds in epoch')
+                
 
         epoch_timers.append(perf_counter() - time_start)
         test_loss = model.evaluate(x= X_test, y= y_test)
