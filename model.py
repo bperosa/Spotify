@@ -37,25 +37,23 @@ def gen_unique_values(test_index, toy_set = False, export = True):
     #Generate idf_values and y_values
     y_counter = Counter()
     idf_counter = Counter()
-    i = 0
-    for d in parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz'):
+
+    for i, d in enumerate(parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz')):
+        if i % 10000 == 0:
+            print(f'Making Inverse doc Frequency Dictionary, Iteration: {i}')
+        
         if i in test_index:
             continue
 
-        X = d['title'].split(' ')
+        X = [word.lower() for word in d['title'].split(' ')]
         # title = [word.split(' ') for word in X][0]
         idf_counter.update(set(X))
   
         Y = np.array(d['category'])
         y_counter.update(Y)
 
-        if i % 10000 == 0:
-            print(f'Making Inverse doc Frequency Dictionary, Iteration: {i}')
-
         if toy_set and (i > 1000): #change/remove
             break
-
-        i += 1
 
     if export:
         with open('counters/y_training_10percent.csv', 'wt') as f:
@@ -162,12 +160,12 @@ if __name__ == '__main__':
     min_ys = 1000
     min_x = 25
 
-    import_data = False
+    import_data = True
 
     if import_data:
-        with open('counters/idf_training.csv') as f:
-            idf_tmp = {k: int(v) for k,v in [line.strip().split(', ') for line in f]}
-        with open('counters/y_training.csv') as f:
+        with open('counters/idf_training_10percent.csv') as f:
+            idf_tmp = {k: int(v) for k,v in [line.strip().rsplit(', ', maxsplit=1) for line in f]}
+        with open('counters/y_training_10percent.csv') as f:
             y_tmp = { k: int(v) for k,v in [line.strip().rsplit(', ', maxsplit=1) for line in f]}
     else:
         y_tmp, idf_tmp = gen_unique_values(test_index) 
@@ -176,8 +174,6 @@ if __name__ == '__main__':
     for k, v in idf_tmp.items():
         if v >= min_x:
             idf_counter[k] = v
-
-
 
     y_counter = {}
     y_counter['other'] = 0
@@ -191,14 +187,10 @@ if __name__ == '__main__':
 
     y_index = {k: i for i , (k,v) in enumerate(y_counter.items())}
     X_index = {k: i for i , (k,v) in enumerate(idf_counter.items())}
-        #testing stuff
-    #test_index = np.sort(gen_test_set(toy_set=True))
-    #y_counter, idf_counter = gen_unique_values(test_index, toy_set= True, export= False) 
 
     y_levels = len(y_counter.keys())
     idf_levels = len(idf_counter.keys())
 
-    idf_array = np.array(list(idf_counter.values()))
     X_unique = set(idf_counter.keys())
 
     #Model Architecture
@@ -212,27 +204,24 @@ if __name__ == '__main__':
     outputs = tf.keras.layers.Dense(units= y_levels, activation = "sigmoid", name= 'output')(hidden4) 
 
     model = tf.keras.Model(inputs = inputs, outputs = outputs)
-
     model.compile(loss = 'binary_crossentropy', optimizer = tf.keras.optimizers.SGD(learning_rate = 0.001))
 
 
     print('generating test set')
     #Gen Test Data
-    i = 0
     j = 0
     first_record = 0
     y_test = 0
     X_test = 0
 
-    # dictionary = 0
-    X_split = 0
-    y_split = 0
-    stacking = 0
+    # dictionary = 0 #Reworked and removed this portion
+    # X_split = 0
+    # y_split = 0
+    # stacking = 0
     
-    for d in parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz'):
+    for i, d in enumerate(parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz')):
 
         if i not in test_index:
-            i += 1 
             continue
 
         x_indices = []
@@ -240,7 +229,7 @@ if __name__ == '__main__':
         y_indices = []
 
         # X_split_start = perf_counter()
-        title = [word for word in d['title'].split(' ') if word in X_unique]
+        title = [word.lower() for word in d['title'].split(' ') if word in X_unique]
         for word in set(title):
             try: 
                 x_indices.append(X_index[word])
@@ -268,10 +257,9 @@ if __name__ == '__main__':
             X_patterns = [X_test, Xsparse]
             X_test = tf.sparse.concat(axis=0, sp_inputs = X_patterns)
         # stacking += perf_counter() - stacking_start
-        i += 1
         j += 1
         if j % 1000 == 0 : print(i, X_test.shape, y_test.shape)
-        if i >= 40000: break
+#        if i >= 40000: break
     print('Test Set built')
 
     #v1 i = 40000
@@ -304,20 +292,17 @@ if __name__ == '__main__':
     for ep in range(epochs):
         print(f'epoch: {ep}')
         time_start = perf_counter()
-    #Training Loop (record)
-        i = 1
+    #Training Loop
         j = 0
 
         training_sample = gen_training_sample(2684888, test_index, 0.05)
-
-        for d in parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz'):
+        for i, d in enumerate(parse_subset('meta_Clothing_Shoes_and_Jewelry.json.gz')):
 
             if i % 100000 == 0:
                 print(i)
                 print(perf_counter() - time_start, ' seconds in epoch')
 
             if (i in test_index) or (i not in training_sample):
-                i += 1
                 continue
 
             x_indices = []
@@ -326,7 +311,7 @@ if __name__ == '__main__':
             y_indices = []
 
             # x_split_start = perf_counter()
-            title = [word for word in d['title'].split(' ') if word in X_unique]
+            title = [word.lower() for word in d['title'].split(' ') if word in X_unique]
             for word in set(title):
                 try: 
                     x_indices.append(X_index[word])
@@ -346,7 +331,6 @@ if __name__ == '__main__':
             # fitting_start = perf_counter()
             history = model.fit(x=Xsparse, y= Ysparse, batch_size = 1, epochs = 1, verbose = 0)
             # fitting += perf_counter() - fitting_start
-            i += 1
 
         #Timing breakdown for 10k records:
             # ~305 seconds
