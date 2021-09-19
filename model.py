@@ -307,7 +307,7 @@ if __name__ == '__main__':
 
     print('generating test set')
     #Gen Test Data
-    X_test, y_test = get_test_set(test_index, idf_counter, y_index, X_index, import_data = False, save_data = True  )
+    X_test, y_test = get_test_set(test_index, idf_counter, y_index, X_index, import_data = False, save_data = False  )
     print('Test Set built/loaded')
 
     #Epoch Loop
@@ -338,7 +338,57 @@ if __name__ == '__main__':
 
         model.save('./models/initial_model')
 
-        #mod2 = tf.keras.models.load_model('./models/initial_model')
+        
 
         df = pd.DataFrame(dict(test_loss = test_loss, test_loss_epochs = test_loss_epochs, train_loss_epochs = train_loss_epochs, epoch_timers=epoch_timers ))
         df.to_csv('training_stats.csv', index = False)
+
+
+    #Evaluating Stuff:
+    #######################################
+    test_index = np.sort(gen_test_set(.1))
+
+    #Import Data
+    min_ys = 1000
+    min_x = 25
+
+    import_data = True
+
+    if import_data:
+        with open('counters/idf_training_10percent.csv') as f:
+            idf_tmp = {k: int(v) for k,v in [line.strip().rsplit(', ', maxsplit=1) for line in f]}
+        with open('counters/y_training_10percent.csv') as f:
+            y_tmp = { k: int(v) for k,v in [line.strip().rsplit(', ', maxsplit=1) for line in f]}
+    else:
+        y_tmp, idf_tmp = gen_unique_values(test_index) 
+
+    idf_counter = {}
+    for k, v in idf_tmp.items():
+        if v >= min_x:
+            idf_counter[k] = v
+
+    y_counter = {}
+    y_counter['other'] = 0
+    for k, v in y_tmp.items():
+        if k == 'other':
+            y_counter['other'] += v
+        elif v >= min_ys:
+            y_counter[k] = v
+        else:
+            y_counter['other'] += v
+
+    y_index = {k: i for i , (k,v) in enumerate(y_counter.items())}
+    X_index = {k: i for i , (k,v) in enumerate(idf_counter.items())}
+
+    y_levels = len(y_counter.keys())
+    idf_levels = len(idf_counter.keys())
+
+    X_unique = set(idf_counter.keys())
+
+    print('generating test set')
+    #Gen Test Data
+    X_test, y_test = get_test_set(test_index, idf_counter, y_index, X_index, import_data = False, save_data = False  )
+    print('Test Set built/loaded')
+
+    model2 = tf.keras.models.load_model('./models/initial_model')
+    model2.evaluate(X_test, y_test)
