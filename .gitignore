@@ -133,3 +133,5 @@ dmypy.json
 
 #data
 meta_Clothing_Shoes_and_Jewelry.json.gz
+
+scratch.py
