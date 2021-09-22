@@ -1,3 +1,11 @@
+# Group 4
+# Team Members: 
+# - Jessica Hamilton
+# - Bailey Perosa
+# - Andrew Paulonis
+# - James McHale
+
+
 import numpy as np
 import gzip
 import json
