@@ -157,7 +157,7 @@ def get_test_set(test_index, idf_counter, y_index, X_index, import_data = False,
         sparse_dense_shape = np.genfromtxt('testdata/x_test_dense_shape.csv',  delimiter = ',')
 
         X_test = tf.sparse.reorder(tf.SparseTensor(sparse_index, sparse_value, sparse_dense_shape))
-        y_test = np.genfromtxt('testdata/y_test.csv', delimiter = ',')
+        y_test = np.genfromtxt('testdata/y_test.csv', delimiter = ',') # Don't use... too much memory to load (probably)
 
     else:
         all_x_indices = []
@@ -392,3 +392,146 @@ if __name__ == '__main__':
 
     model2 = tf.keras.models.load_model('./models/initial_model')
     model2.evaluate(X_test, y_test)
+
+    preds = model2.predict(X_test)
+
+    #Making Accuracy Metric
+    accuracy = []
+    for j in range(y_test.shape[0]):
+        predicted_labels = [list(y_counter.keys())[i] for i in np.argpartition(preds[j,:],-5)[-5:]]
+        actual_labels = [list(y_counter.keys())[i] for i in np.nonzero(y_test[j,:])[0]]
+
+        accuracy.append(np.sum([1 for i in predicted_labels if i in actual_labels])/ min(len(actual_labels),5))
+
+    np.mean(np.array(accuracy))
+
+    y_test.shape[1]
+    X_test.shape
+
+    model2.summary()
+    
+    
+    df = pd.read_csv('training_stats.csv')
+
+    train_loss = [float(el.replace('[', '', el.count('[')).replace(']', '', el.count(']'))) for el in df['train_loss_epochs']]
+    
+    df['train_loss_epochs'] = train_loss
+
+    df
+    import matplotlib.pyplot as plt
+
+    plt.plot(np.array(list(range(15)))+1,  df['train_loss_epochs'], label = 'Training Loss')
+    plt.plot(np.array(list(range(15)))+1,  df['test_loss_epochs'], label = 'Test Loss')
+    plt.legend()
+    plt.title('Loss per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Cross Entropy Loss')
+    plt.show()
+
+    df.tail(1)
+
+
+    #Variable Importance
+    vi_index = np.sort(gen_test_set(test_size = 0.005, toy_set = False, seed = 24785))
+    vi_index.shape
+    X_test_vi, y_test_vi = get_test_set(vi_index, idf_counter, y_index, X_index, import_data = False, save_data = False  )
+
+    loss_before = model2.evaluate(X_test_vi, y_test_vi)
+
+    x_indices_array = np.array(X_test_vi.indices)
+    x_values_array = np.array(X_test_vi.values)
+
+    x_indices_importance = x_indices_array.copy()
+    #x_values_importance = x_values_array.copy()
+
+    for i in range(10):
+        print(x_indices_array[i])
+        print(x_values_array[i])
+
+    accuracy = []
+    preds = model2.predict(X_test_vi)         
+    for l in range(y_test_vi.shape[0]):
+            predicted_labels = [list(y_counter.keys())[n] for n in np.argpartition(preds[l,:],-5)[-5:]]
+            actual_labels = [list(y_counter.keys())[n] for n in np.nonzero(y_test_vi[l,:])[0]]
+
+            accuracy.append(np.sum([1 for n in predicted_labels if n in actual_labels])/ min(len(actual_labels),5))
+
+    accuracy_before = np.mean(np.array(accuracy).copy())
+
+    importance = []
+    accuracy_diff = []
+    column_dictionary = {}
+    for i in range(X_test_vi.shape[1]):
+        column_dictionary[str(i)] = []
+        x_indices_importance = x_indices_array.copy()
+        print(i)
+
+        for j in range(x_indices_array.shape[0]):
+            if x_indices_array[j][1] == i:
+                column_dictionary[str(i)].append(j)
+
+        new_index = np.random.choice(np.arange(0, X_test_vi.shape[0]), size = len(column_dictionary[str(i)]) , replace=False)
+
+        for k in range(new_index.shape[0]):
+            x_indices_importance[column_dictionary[str(i)][k]][0] = new_index[k]
+
+        X_test_importance = tf.sparse.reorder(tf.SparseTensor(x_indices_importance, x_values_array, X_test_vi.dense_shape))
+        
+        #loss_new = model2.evaluate(X_test_importance, y_test_vi)
+
+        preds = model2.predict(X_test_importance)
+
+        accuracy = []            
+        for l in range(y_test_vi.shape[0]):
+            predicted_labels = [list(y_counter.keys())[n] for n in np.argpartition(preds[l,:],-5)[-5:]]
+            actual_labels = [list(y_counter.keys())[n] for n in np.nonzero(y_test_vi[l,:])[0]]
+            accuracy.append(np.sum([1 for n in predicted_labels if n in actual_labels])/ min(len(actual_labels),5))
+ 
+        print(np.mean(np.array(accuracy).copy()))
+        accuracy_diff.append(accuracy_before - np.mean(np.array(accuracy).copy()))
+
+        #importance.append(loss_before - loss_new)
+
+        if i == 25:
+            break
+
+    plt.plot(list(range(50)), accuracy_diff)
+    plt.xlabel('Category Index')
+    plt.xticks(rotation = 45)
+    plt.ylabel('Change in 5-way accuracy')
+    plt.title('Variable Importance Plot')
+    plt.show()
+
+    (.005*2684888*50)/((.05*2684888*15)*30000)
+
+    #Partial Dependence
+    partial_depend = []
+    #1 x column, 1 y_column
+    col = 0 #other, 2 = Women
+    for i in range(X_test_vi.indices.shape[0]):
+        if X_test_vi.indices[i][1] == col:
+            partial_depend.append(i)
+
+    vals = np.unique(np.array(X_test_vi.values)[np.array([partial_depend])])
+
+    i = 0
+    new_col = np.delete(np.array(X_test_vi.indices), np.array([partial_depend]), axis = 0  )
+    new_values = np.delete(X_test_vi.values, np.array([partial_depend]))
+
+    X_test_pd = tf.sparse.reorder(tf.SparseTensor(new_col, new_values, [X_test_vi.shape[0], X_test_vi.shape[1]]))
+    preds_pd = model2.predict(X_test_pd)
+    y_0 = np.mean(preds_pd[:,0])
+
+    #y_index
+    new_col
+    new_col_2 = np.append( new_col, np.array([[i, col] for i in range(X_test_vi.shape[0]) ]), axis = 0)
+    new_col_2.shape
+    new_vals2 = np.append( new_values ,[vals[0] for i in range(X_test_vi.shape[0])])
+    new_vals2.shape
+    X_test_pd = tf.sparse.reorder(tf.SparseTensor(new_col_2, new_vals2, [X_test_vi.shape[0], X_test_vi.shape[1]]))
+    preds_pd = model2.predict(X_test_pd)
+    y_0_0 = np.mean(preds_pd[:,0])
+    y_0_0
+    y_0
+
+
